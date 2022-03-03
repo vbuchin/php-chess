@@ -1,7 +1,19 @@
 <?php
 
-class Board {
+final class Board {
+    /**
+     * @var Figure[]
+     */
     private $figures = [];
+
+    /**
+     * @var Move[]
+     */
+    private $moves = [];
+
+    private $bordersX = [ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    private $bordersY = [1,2,3,4,5,6,7,8];
 
     public function __construct() {
         $this->figures['a'][1] = new Rook(false);
@@ -41,9 +53,9 @@ class Board {
         $this->figures['h'][8] = new Rook(true);
     }
 
-    public function move($move) {
-        if (!preg_match('/^([a-h])(\d)-([a-h])(\d)$/', $move, $match)) {
-            throw new \Exception("Incorrect move");
+    public function move($movesInput) {
+        if (!preg_match('/^([a-h])(\d)-([a-h])(\d)$/', $movesInput, $match)) {
+            throw new \Exception("Incorrect move (regexp parsing)");
         }
 
         $xFrom = $match[1];
@@ -51,10 +63,38 @@ class Board {
         $xTo   = $match[3];
         $yTo   = $match[4];
 
-        if (isset($this->figures[$xFrom][$yFrom])) {
-            $this->figures[$xTo][$yTo] = $this->figures[$xFrom][$yFrom];
+        $spotFrom = new Spot($xFrom, $yFrom);
+        $spotTo = new Spot($xTo, $yTo);
+        $figure = $this->getFigureByCoordinates($spotFrom);
+        $figureAtTargetPosition = $this->getFigureByCoordinates($spotTo);
+
+        if ($figure === null) {
+            throw new \Exception("Incorrect move (no figure at from position)");
         }
+
+        if (!$this->isOrderCorrect($figure)){
+            throw new \Exception("Incorrect move (wrong order)");
+        }
+
+        if ($figureAtTargetPosition !== null && ($figureAtTargetPosition->getIsBlack() === $figure->getIsBlack())) {
+            throw new \Exception("Incorrect move (friendly fire)");
+        }
+
+        if (!$this->isMoveWithinBorders($xTo, $yTo)) {
+            throw new \Exception("Incorrect move (out of borders)"); //a0 case
+        }
+
+        $move = new Move($figure, $spotFrom, $spotTo);
+
+        if (!$figure->isMoveAllowed($this, $move)){
+            throw new \Exception("Incorrect move (figure rules)");
+        }
+
+        $this->figures[$xTo][$yTo] = $figure;
         unset($this->figures[$xFrom][$yFrom]);
+
+        $this->moves[] = $move;
+        $figure->increaseMovesCount();
     }
 
     public function dump() {
@@ -70,5 +110,46 @@ class Board {
             echo "\n";
         }
         echo "  abcdefgh\n";
+    }
+
+    public function getFigureByCoordinates(Spot $spot) : ?Figure {
+        if (isset($this->figures[$spot->getX()][$spot->getY()])) {
+            return $this->figures[$spot->getX()][$spot->getY()];
+        }
+
+        return null;
+    }
+
+    private function isOrderCorrect($figure) : bool {
+
+        //Black tries to do first move
+        if (count($this->moves) === 0 && $figure->getIsBlack()) {
+            return false;
+        }
+
+        //White goes first
+        if (count($this->moves) === 0 && !$figure->getIsBlack()) {
+            return true;
+        }
+
+        //Next move by the same color as previous
+        $move = end($this->moves);
+        if ($move->getFigure()->getIsBlack() === $figure->getIsBlack()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function isMoveWithinBorders($x, $y) : bool {
+        if (in_array($x, $this->bordersX) && in_array($y, $this->bordersY)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function getLatestMove() : ?Move {
+        return count($this->moves) > 0 ? $this->moves[array_key_last($this->moves)] : null;
     }
 }

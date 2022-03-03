@@ -93,6 +93,20 @@ class Test extends \PHPUnit\Framework\TestCase {
         $this->runFile('tests/027-pawn-can-not-move-across-figure.test');
     }
 
+    /**
+     * @group pawn
+     */
+    public function testPawnSpecialMoveCorrect() {
+        $this->runFile('tests/028-pawn-special-move-correct.test');
+    }
+
+    /**
+     * @group pawn
+     */
+    public function testPawnSpecialMoveError() {
+        $this->runFile('tests/029-pawn-special-move-error.test');
+    }
+
 
     /**
      * Test file structure
